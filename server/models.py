@@ -7,6 +7,7 @@ from sqlalchemy.orm import validates
 from config import bcrypt, db
 
 VALID_TRIP_TYPES = ("flight", "hotel")
+VERDICTS = ("BOOK NOW", "KEEP WATCHING", "NOT ENOUGH DATA")
 MAX_PASSWORD_BYTES = 72  # bcrypt raises an error on anything longer
 
 
@@ -224,12 +225,18 @@ class Recommendation(db.Model):
             raise ValueError(f"{key} must not be empty.")
         return value.strip()
 
+    def verdict(self):
+        # Models sometimes bold their labels, as in "**BOOK NOW**".
+        first_line = self.generated_text.splitlines()[0].strip(" *")
+        return first_line if first_line in VERDICTS else None
+
     def to_dict(self):
         return {
             "id": self.id,
             "trip_watch_id": self.trip_watch_id,
             "prompt": self.prompt,
             "generated_text": self.generated_text,
+            "verdict": self.verdict(),
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

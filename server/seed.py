@@ -28,17 +28,12 @@ SEED_DATA = {
                 (1, 297, "Frontier", 1),
             ],
             "recommendation": {
-                "prompt": (
-                    "Should I book ATL to LAX now or wait? My target price is $280. "
-                    "The latest price is $297, and prices over the past two weeks "
-                    "ranged from $297 to $351."
-                ),
+                "prompt": "Should I book now or wait?",
                 "generated_text": (
-                    "Wait a little longer. At $297 this is the lowest price in the past two "
-                    "weeks and only $17 above your target, so the trend is in your favor. "
-                    "Your trip is still more than six weeks away, which leaves time to watch "
-                    "for a drop to $280. Run another check in a few days, and book if the "
-                    "price reaches your target or starts climbing back above $320."
+                    "BOOK NOW\n"
+                    "The latest price of $297 is the lowest price seen. Across 7 checks, prices "
+                    "ranged from $297 to $351. Future prices can't be known, but this is close "
+                    "to the best price seen so far."
                 ),
             },
         },

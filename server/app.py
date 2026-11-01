@@ -4,9 +4,12 @@ from flask import request
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from sqlalchemy.exc import IntegrityError
 
+from ai_service import AIServiceError, generate_recommendation
+from ai_service import is_mock_mode as is_ai_mock_mode
 from config import app, db, jwt
 from models import PriceCheck, Recommendation, TripWatch, User, parse_date, utc_now
-from price_service import PriceServiceError, check_price, is_mock_mode
+from price_service import PriceServiceError, check_price
+from price_service import is_mock_mode as is_price_mock_mode
 
 MIN_PASSWORD_LENGTH = 8
 TRIP_FIELDS = (
@@ -14,6 +17,9 @@ TRIP_FIELDS = (
 )
 REQUIRED_TRIP_FIELDS = ("origin", "destination", "start_date", "end_date")
 MIN_TIME_BETWEEN_CHECKS = timedelta(minutes=2)
+DEFAULT_QUESTION = "Should I book now or wait?"
+QUESTION_MIN_LENGTH = 5
+QUESTION_MAX_LENGTH = 500
 
 
 def error(message, status):
@@ -49,6 +55,10 @@ def owned_trip(trip_id):
 
 def oldest_checks_first(trip):
     return sorted(trip.price_checks, key=lambda check: (check.checked_at, check.id))
+
+
+def newest_recommendations_first(trip):
+    return sorted(trip.recommendations, key=lambda rec: (rec.created_at, rec.id), reverse=True)
 
 
 def parse_travelers(value):
@@ -146,7 +156,8 @@ def expired_token(jwt_header, jwt_payload):
 def index():
     return {
         "message": "FareWatch API running",
-        "price_mode": "mock" if is_mock_mode() else "live",
+        "price_mode": "mock" if is_price_mock_mode() else "live",
+        "ai_mode": "mock" if is_ai_mock_mode() else "live",
     }
 
 
@@ -245,13 +256,10 @@ def get_trip(trip_id):
     if not trip:
         return error("Not found", 404)
 
-    recommendations = sorted(
-        trip.recommendations, key=lambda rec: (rec.created_at, rec.id), reverse=True
-    )
     return {
         **trip.to_dict(),
         "price_checks": [check.to_dict() for check in oldest_checks_first(trip)],
-        "recommendations": [rec.to_dict() for rec in recommendations],
+        "recommendations": [rec.to_dict() for rec in newest_recommendations_first(trip)],
     }, 200
 
 
@@ -319,6 +327,62 @@ def create_price_check(trip_id):
     db.session.add(price_check)
     commit()
     return price_check.to_dict(), 201
+
+
+@app.get("/trips/<int:trip_id>/recommendations")
+@jwt_required()
+def list_recommendations(trip_id):
+    trip = owned_trip(trip_id)
+    if not trip:
+        return error("Not found", 404)
+    return [rec.to_dict() for rec in newest_recommendations_first(trip)], 200
+
+
+@app.post("/trips/<int:trip_id>/recommendations")
+@jwt_required()
+def create_recommendation(trip_id):
+    trip = owned_trip(trip_id)
+    if not trip:
+        return error("Not found", 404)
+
+    # The body is optional because the question has a default.
+    data = json_body() or {}
+    question = data.get("question")
+    if question is None:
+        question = DEFAULT_QUESTION
+    if not isinstance(question, str):
+        return error("Question must be text", 400)
+    question = question.strip()
+    if not QUESTION_MIN_LENGTH <= len(question) <= QUESTION_MAX_LENGTH:
+        return error(
+            f"Question must be {QUESTION_MIN_LENGTH} to {QUESTION_MAX_LENGTH} characters", 400
+        )
+
+    try:
+        generated_text = generate_recommendation(trip, oldest_checks_first(trip), question)
+    except AIServiceError as e:
+        db.session.rollback()
+        return error(e.message, e.status_code)
+
+    recommendation = Recommendation(trip_watch=trip, prompt=question, generated_text=generated_text)
+    db.session.add(recommendation)
+    commit()
+    return recommendation.to_dict(), 201
+
+
+@app.delete("/recommendations/<int:rec_id>")
+@jwt_required()
+def delete_recommendation(rec_id):
+    recommendation = (
+        Recommendation.query.join(TripWatch)
+        .filter(Recommendation.id == rec_id, TripWatch.user_id == current_user_id())
+        .first()
+    )
+    if not recommendation:
+        return error("Not found", 404)
+    db.session.delete(recommendation)
+    commit()
+    return "", 204
 
 
 if __name__ == "__main__":
