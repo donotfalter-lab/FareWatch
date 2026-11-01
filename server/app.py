@@ -1,15 +1,19 @@
+from datetime import timedelta
+
 from flask import request
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from sqlalchemy.exc import IntegrityError
 
 from config import app, db, jwt
-from models import PriceCheck, Recommendation, TripWatch, User, parse_date
+from models import PriceCheck, Recommendation, TripWatch, User, parse_date, utc_now
+from price_service import PriceServiceError, check_price, is_mock_mode
 
 MIN_PASSWORD_LENGTH = 8
 TRIP_FIELDS = (
     "trip_type", "origin", "destination", "start_date", "end_date", "travelers", "target_price",
 )
 REQUIRED_TRIP_FIELDS = ("origin", "destination", "start_date", "end_date")
+MIN_TIME_BETWEEN_CHECKS = timedelta(minutes=2)
 
 
 def error(message, status):
@@ -41,6 +45,10 @@ def commit():
 
 def owned_trip(trip_id):
     return TripWatch.query.filter_by(id=trip_id, user_id=current_user_id()).first()
+
+
+def oldest_checks_first(trip):
+    return sorted(trip.price_checks, key=lambda check: (check.checked_at, check.id))
 
 
 def parse_travelers(value):
@@ -136,7 +144,10 @@ def expired_token(jwt_header, jwt_payload):
 
 @app.route("/")
 def index():
-    return {"message": "FareWatch API running"}
+    return {
+        "message": "FareWatch API running",
+        "price_mode": "mock" if is_mock_mode() else "live",
+    }
 
 
 @app.post("/signup")
@@ -234,13 +245,12 @@ def get_trip(trip_id):
     if not trip:
         return error("Not found", 404)
 
-    price_checks = sorted(trip.price_checks, key=lambda check: (check.checked_at, check.id))
     recommendations = sorted(
         trip.recommendations, key=lambda rec: (rec.created_at, rec.id), reverse=True
     )
     return {
         **trip.to_dict(),
-        "price_checks": [check.to_dict() for check in price_checks],
+        "price_checks": [check.to_dict() for check in oldest_checks_first(trip)],
         "recommendations": [rec.to_dict() for rec in recommendations],
     }, 200
 
@@ -277,6 +287,38 @@ def delete_trip(trip_id):
     db.session.delete(trip)
     commit()
     return "", 204
+
+
+@app.get("/trips/<int:trip_id>/price-checks")
+@jwt_required()
+def list_price_checks(trip_id):
+    trip = owned_trip(trip_id)
+    if not trip:
+        return error("Not found", 404)
+    return [check.to_dict() for check in oldest_checks_first(trip)], 200
+
+
+@app.post("/trips/<int:trip_id>/price-checks")
+@jwt_required()
+def create_price_check(trip_id):
+    trip = owned_trip(trip_id)
+    if not trip:
+        return error("Not found", 404)
+
+    # Live checks spend searches from the free SerpApi quota, so space them out.
+    latest = trip.latest_check()
+    if latest and utc_now() - latest.checked_at < MIN_TIME_BETWEEN_CHECKS:
+        return error("Please wait a moment before checking again", 429)
+
+    try:
+        result = check_price(trip, latest.lowest_price if latest else None)
+    except PriceServiceError as e:
+        return error(e.message, e.status_code)
+
+    price_check = PriceCheck(trip_watch=trip, **result)
+    db.session.add(price_check)
+    commit()
+    return price_check.to_dict(), 201
 
 
 if __name__ == "__main__":

@@ -92,6 +92,9 @@ Backend:
   would otherwise fail because each date is checked against the other as it is set.
 - `provider` is `"mock"` for sample prices. `PriceCheck.details` holds `airline`, `stops`,
   and `duration_minutes`, so `price_service.py` must store those same fields.
+- Live price checks have `provider` `"serpapi"`. Their `details` describe the outbound leg
+  only, and all three values are empty if only `price_insights` had a price.
+- `POST /trips/<id>/price-checks` returns 429 if the trip's last check is under 2 minutes old.
 - `TripWatch.to_dict()` includes `latest_price`, `price_check_count`, and
   `at_or_below_target`. `GET /trips/<id>` adds `price_checks` (oldest first, for charting)
   and `recommendations` (newest first).
@@ -136,7 +139,7 @@ FareWatchh/
 │   ├── app.py             # routes
 │   ├── seed.py            # demo data (demo and demo2, password123)
 │   ├── migrations/
-│   ├── price_service.py   # (later) SerpApi + mock
+│   ├── price_service.py   # SerpApi + mock
 │   └── ai_service.py      # (later) Gemini + mock
 └── client/                # Vite + React
     ├── vite.config.js     # /api proxy → localhost:5555
@@ -175,7 +178,7 @@ npm run lint
 4. ✅ TripWatch CRUD routes.
 5. ✅ Frontend auth (api.js, AuthContext, route guards, login/signup forms).
 6. ✅ Frontend dashboard, trip create/edit form, and detail page with placeholder sections.
-7. Price checks (`price_service.py`) and price history routes.
+7. ✅ Price checks (`price_service.py`) and price history routes.
 8. Frontend "Price History" section with a Recharts chart.
 9. Recommendations (`ai_service.py`) routes.
 10. Frontend "Should I Book?" section.

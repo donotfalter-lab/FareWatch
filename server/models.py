@@ -134,11 +134,14 @@ class TripWatch(db.Model):
             raise ValueError("target_price must be a positive number.")
         return value
 
-    def latest_price(self):
+    def latest_check(self):
         if not self.price_checks:
             return None
-        latest = max(self.price_checks, key=lambda check: (check.checked_at, check.id))
-        return latest.lowest_price
+        return max(self.price_checks, key=lambda check: (check.checked_at, check.id))
+
+    def latest_price(self):
+        latest = self.latest_check()
+        return latest.lowest_price if latest else None
 
     def to_dict(self):
         latest_price = self.latest_price()
