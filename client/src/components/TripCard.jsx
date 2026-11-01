@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { formatDate, formatPrice, formatTravelers } from '../utils/format'
+import VerdictBadge from './VerdictBadge.jsx'
 
 export default function TripCard({ trip }) {
   return (
@@ -19,7 +20,10 @@ export default function TripCard({ trip }) {
         )}
       </div>
 
-      {trip.at_or_below_target && <span className="badge">At or below target</span>}
+      <div className="trip-card-badges">
+        {trip.at_or_below_target && <span className="badge">At or below target</span>}
+        <VerdictBadge verdict={trip.latest_verdict} />
+      </div>
     </Link>
   )
 }

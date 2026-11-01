@@ -97,7 +97,7 @@ Backend:
 - `POST /trips/<id>/price-checks` returns 429 if the trip's last check is under 2 minutes old.
 - Recommendations start with a label on the first line: `BOOK NOW`, `KEEP WATCHING`, or
   `NOT ENOUGH DATA`. `Recommendation.to_dict()` exposes it as `verdict` (`None` if missing).
-- `TripWatch.to_dict()` includes `latest_price`, `price_check_count`, and
+- `TripWatch.to_dict()` includes `latest_price`, `price_check_count`, `latest_verdict`, and
   `at_or_below_target`. `GET /trips/<id>` adds `price_checks` (oldest first, for charting)
   and `recommendations` (newest first).
 
@@ -185,5 +185,5 @@ npm run lint
 7. ✅ Price checks (`price_service.py`) and price history routes.
 8. ✅ Frontend "Price History" section with a Recharts chart.
 9. ✅ Recommendations (`ai_service.py`) routes.
-10. Frontend "Should I Book?" section.
+10. ✅ Frontend "Should I Book?" section.
 11. README and final polish.

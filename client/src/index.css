@@ -12,6 +12,10 @@
   --danger-hover: #8f1e18;
   --success: #17663a;
   --success-bg: #dcf5e5;
+  --warning: #7a4f00;
+  --warning-bg: #fdf0d5;
+  --neutral: #44576a;
+  --neutral-bg: #e6ecf1;
   --radius: 12px;
 
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -186,7 +190,8 @@ a {
   margin: 0.75rem 0 0.25rem;
 }
 
-.form input {
+.form input,
+.form textarea {
   width: 100%;
   min-width: 0;
   font: inherit;
@@ -195,7 +200,12 @@ a {
   border-radius: 8px;
 }
 
-.form input:focus {
+.form textarea {
+  resize: vertical;
+}
+
+.form input:focus,
+.form textarea:focus {
   outline: 2px solid var(--primary);
   outline-offset: 1px;
   border-color: var(--primary);
@@ -211,6 +221,23 @@ a {
 
 .form-wide {
   max-width: 560px;
+}
+
+.form-full {
+  max-width: none;
+  margin: 0;
+}
+
+.form .button-row .button {
+  margin-top: 0;
+}
+
+.form .button-row {
+  margin-top: 1rem;
+}
+
+.form .error-message {
+  margin: 0.75rem 0 0;
 }
 
 .form-row {
@@ -308,6 +335,11 @@ a {
   background: var(--danger-hover);
 }
 
+.button-small {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.9rem;
+}
+
 .button-row {
   display: flex;
   flex-wrap: wrap;
@@ -367,7 +399,13 @@ a {
   color: var(--primary);
 }
 
-.trip-card .badge {
+.trip-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.trip-card-badges:not(:empty) {
   margin-top: 0.75rem;
 }
 
@@ -379,6 +417,28 @@ a {
   font-weight: 600;
   background: var(--success-bg);
   color: var(--success);
+}
+
+.verdict-book {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.verdict-watch {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.verdict-unknown {
+  background: var(--neutral-bg);
+  color: var(--neutral);
+}
+
+.detail-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .trip-facts {
@@ -505,6 +565,69 @@ a {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--muted);
+}
+
+/* Should I Book? */
+
+.should-i-book {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.should-i-book h2 {
+  margin: 0;
+}
+
+.should-i-book .form label {
+  margin-top: 0;
+}
+
+.tip {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.list-empty {
+  margin: 0;
+}
+
+.recommendation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.recommendation-card {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.recommendation-question {
+  margin: 0.6rem 0 0.4rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.preserve-lines {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.recommendation-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
 }
 
 /* Phone widths */
