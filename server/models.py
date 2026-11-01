@@ -144,6 +144,12 @@ class TripWatch(db.Model):
         latest = self.latest_check()
         return latest.lowest_price if latest else None
 
+    def latest_verdict(self):
+        if not self.recommendations:
+            return None
+        newest = max(self.recommendations, key=lambda rec: (rec.created_at, rec.id))
+        return newest.verdict()
+
     def to_dict(self):
         latest_price = self.latest_price()
         return {
@@ -159,6 +165,7 @@ class TripWatch(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "latest_price": latest_price,
             "price_check_count": len(self.price_checks),
+            "latest_verdict": self.latest_verdict(),
             "at_or_below_target": (
                 latest_price is not None
                 and self.target_price is not None

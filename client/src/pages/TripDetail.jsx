@@ -6,6 +6,9 @@ import PriceChart from '../components/PriceChart.jsx'
 import PriceChecker from '../components/PriceChecker.jsx'
 import PriceHistoryTable from '../components/PriceHistoryTable.jsx'
 import PriceSummary from '../components/PriceSummary.jsx'
+import RecommendationGenerator from '../components/RecommendationGenerator.jsx'
+import RecommendationList from '../components/RecommendationList.jsx'
+import VerdictBadge from '../components/VerdictBadge.jsx'
 import { formatDate, formatPrice, formatTravelers } from '../utils/format'
 
 export default function TripDetail() {
@@ -14,6 +17,7 @@ export default function TripDetail() {
 
   const [trip, setTrip] = useState(null)
   const [priceChecks, setPriceChecks] = useState([])
+  const [recommendations, setRecommendations] = useState([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState('')
@@ -24,9 +28,10 @@ export default function TripDetail() {
     apiFetch(`/trips/${id}`)
       .then((data) => {
         if (ignore) return
-        const { price_checks: savedChecks, ...details } = data
+        const { price_checks: savedChecks, recommendations: savedAdvice, ...details } = data
         setTrip(details)
         setPriceChecks(savedChecks)
+        setRecommendations(savedAdvice)
       })
       .catch((err) => {
         if (ignore) return
@@ -81,7 +86,10 @@ export default function TripDetail() {
     <div className="stack">
       <section className="card">
         <div className="detail-header">
-          <h1>{trip.origin} → {trip.destination}</h1>
+          <div className="detail-title">
+            <h1>{trip.origin} → {trip.destination}</h1>
+            <VerdictBadge verdict={recommendations[0]?.verdict} />
+          </div>
           <div className="button-row">
             <Link to={`/trips/${id}/edit`} className="button button-secondary">
               Edit
@@ -134,9 +142,21 @@ export default function TripDetail() {
         <PriceHistoryTable priceChecks={priceChecks} />
       </section>
 
-      <section className="card">
+      <section className="card should-i-book">
         <h2>Should I Book?</h2>
-        <p className="muted">AI booking recommendations are coming soon.</p>
+        <RecommendationGenerator
+          tripId={trip.id}
+          priceCheckCount={priceChecks.length}
+          onCreated={(recommendation) =>
+            setRecommendations((current) => [recommendation, ...current])
+          }
+        />
+        <RecommendationList
+          recommendations={recommendations}
+          onDeleted={(deletedId) =>
+            setRecommendations((current) => current.filter((rec) => rec.id !== deletedId))
+          }
+        />
       </section>
     </div>
   )
