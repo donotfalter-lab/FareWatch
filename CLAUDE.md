@@ -107,6 +107,8 @@ Frontend:
 - Two routes that share a component get different `key`s (see `TripForm` in `App.jsx`), or
   React keeps the old state when moving between them.
 - All styles live in `client/src/index.css` and use its CSS variables.
+- `checked_at` and `created_at` are UTC with no timezone marker, so read them with
+  `toTimestamp()` from `format.js`. Otherwise they show in the wrong hour.
 
 ## Git workflow
 
@@ -179,7 +181,7 @@ npm run lint
 5. ✅ Frontend auth (api.js, AuthContext, route guards, login/signup forms).
 6. ✅ Frontend dashboard, trip create/edit form, and detail page with placeholder sections.
 7. ✅ Price checks (`price_service.py`) and price history routes.
-8. Frontend "Price History" section with a Recharts chart.
+8. ✅ Frontend "Price History" section with a Recharts chart.
 9. Recommendations (`ai_service.py`) routes.
 10. Frontend "Should I Book?" section.
 11. README and final polish.

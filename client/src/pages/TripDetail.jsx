@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { apiFetch } from '../api'
 import ErrorMessage from '../components/ErrorMessage.jsx'
+import PriceChart from '../components/PriceChart.jsx'
+import PriceChecker from '../components/PriceChecker.jsx'
+import PriceHistoryTable from '../components/PriceHistoryTable.jsx'
+import PriceSummary from '../components/PriceSummary.jsx'
 import { formatDate, formatPrice, formatTravelers } from '../utils/format'
 
 export default function TripDetail() {
@@ -9,6 +13,7 @@ export default function TripDetail() {
   const navigate = useNavigate()
 
   const [trip, setTrip] = useState(null)
+  const [priceChecks, setPriceChecks] = useState([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState('')
@@ -18,7 +23,10 @@ export default function TripDetail() {
     let ignore = false
     apiFetch(`/trips/${id}`)
       .then((data) => {
-        if (!ignore) setTrip(data)
+        if (ignore) return
+        const { price_checks: savedChecks, ...details } = data
+        setTrip(details)
+        setPriceChecks(savedChecks)
       })
       .catch((err) => {
         if (ignore) return
@@ -64,6 +72,11 @@ export default function TripDetail() {
 
   if (!trip) return <ErrorMessage message={error} />
 
+  // Worked out from priceChecks so a new check updates them right away.
+  const latestPrice = priceChecks.length ? priceChecks[priceChecks.length - 1].lowest_price : null
+  const atOrBelowTarget =
+    latestPrice !== null && trip.target_price !== null && latestPrice <= trip.target_price
+
   return (
     <div className="stack">
       <section className="card">
@@ -102,17 +115,23 @@ export default function TripDetail() {
           <div>
             <dt>Latest price</dt>
             <dd>
-              {trip.latest_price === null ? 'No price checks yet' : formatPrice(trip.latest_price)}
+              {latestPrice === null ? 'No price checks yet' : formatPrice(latestPrice)}
             </dd>
           </div>
         </dl>
 
-        {trip.at_or_below_target && <span className="badge">At or below target</span>}
+        {atOrBelowTarget && <span className="badge">At or below target</span>}
       </section>
 
-      <section className="card">
+      <section className="card price-history">
         <h2>Price History</h2>
-        <p className="muted">The price history chart is coming soon.</p>
+        <PriceChecker
+          tripId={trip.id}
+          onChecked={(priceCheck) => setPriceChecks((current) => [...current, priceCheck])}
+        />
+        <PriceSummary priceChecks={priceChecks} />
+        <PriceChart priceChecks={priceChecks} targetPrice={trip.target_price} />
+        <PriceHistoryTable priceChecks={priceChecks} />
       </section>
 
       <section className="card">

@@ -23,3 +23,23 @@ export function formatPrice(number) {
 export function formatTravelers(count) {
   return `${count} ${count === 1 ? 'traveler' : 'travelers'}`
 }
+
+// The backend stores UTC times without a timezone marker. Without the "Z",
+// the browser would read them as local time and show the wrong hour.
+export function toTimestamp(utcString) {
+  return new Date(`${utcString}Z`).getTime()
+}
+
+export function formatShortDate(timestamp) {
+  return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+export function formatDateTime(timestamp) {
+  return new Date(timestamp).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
