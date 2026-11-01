@@ -8,6 +8,10 @@
   --primary-hover: #11539f;
   --error: #b3261e;
   --error-bg: #fdecea;
+  --danger: #b3261e;
+  --danger-hover: #8f1e18;
+  --success: #17663a;
+  --success-bg: #dcf5e5;
   --radius: 12px;
 
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -31,6 +35,11 @@ body {
 h1 {
   margin: 0 0 1rem;
   font-size: 1.5rem;
+}
+
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
 }
 
 a {
@@ -66,6 +75,39 @@ a {
   max-width: 400px;
   margin: 0 auto;
   text-align: center;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.page-header,
+.detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.page-header {
+  margin-bottom: 1.25rem;
+}
+
+.page-header h1,
+.detail-header h1 {
+  margin: 0;
+}
+
+.empty-state {
+  text-align: center;
+}
+
+.empty-state p {
+  margin-top: 0;
+  font-size: 1.1rem;
 }
 
 /* Navbar */
@@ -145,6 +187,8 @@ a {
 }
 
 .form input {
+  width: 100%;
+  min-width: 0;
   font: inherit;
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--border);
@@ -159,6 +203,43 @@ a {
 
 .form .button {
   margin-top: 1.25rem;
+}
+
+.form input[aria-invalid='true'] {
+  border-color: var(--error);
+}
+
+.form-wide {
+  max-width: 560px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.field-error {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--error);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.form .form-actions .button {
+  margin-top: 0;
 }
 
 .hint {
@@ -176,6 +257,10 @@ a {
 /* Buttons */
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
   font: inherit;
   font-weight: 600;
   padding: 0.55rem 1rem;
@@ -196,13 +281,37 @@ a {
 }
 
 .button-secondary {
-  padding: 0.3rem 0.8rem;
   background: transparent;
-  border-color: #fff;
+  color: var(--primary);
 }
 
 .button-secondary:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+.navbar .button-secondary {
+  padding: 0.3rem 0.8rem;
+  border-color: #fff;
+  color: #fff;
+}
+
+.navbar .button-secondary:hover:not(:disabled) {
   background: rgb(255 255 255 / 0.15);
+}
+
+.button-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.button-danger:hover:not(:disabled) {
+  background: var(--danger-hover);
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 /* Errors */
@@ -213,6 +322,81 @@ a {
   border-radius: 8px;
   background: var(--error-bg);
   color: var(--error);
+}
+
+/* Trips */
+
+.trip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.trip-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.trip-card:hover,
+.trip-card:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 4px 16px rgb(23 105 199 / 0.18);
+}
+
+.trip-card p {
+  margin: 0.15rem 0 0;
+}
+
+.trip-card-prices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.trip-card .trip-price {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.trip-card .badge {
+  margin-top: 0.75rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.trip-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+
+.trip-facts dt {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.trip-facts dd {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
 }
 
 /* Phone widths */
@@ -230,5 +414,9 @@ a {
     margin-left: 0;
     width: 100%;
     justify-content: space-between;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
   }
 }
