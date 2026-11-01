@@ -30,9 +30,9 @@ def parse_date(key, value):
     if isinstance(value, date):
         return value
     try:
-        return date.fromisoformat(value)
+        return datetime.strptime(value, "%Y-%m-%d").date()
     except (TypeError, ValueError):
-        raise ValueError(f"{key} must be a date like 2027-01-31.")
+        raise ValueError(f"{key} must be a date in YYYY-MM-DD format.")
 
 
 class User(db.Model):
@@ -134,7 +134,14 @@ class TripWatch(db.Model):
             raise ValueError("target_price must be a positive number.")
         return value
 
+    def latest_price(self):
+        if not self.price_checks:
+            return None
+        latest = max(self.price_checks, key=lambda check: (check.checked_at, check.id))
+        return latest.lowest_price
+
     def to_dict(self):
+        latest_price = self.latest_price()
         return {
             "id": self.id,
             "user_id": self.user_id,
@@ -146,6 +153,13 @@ class TripWatch(db.Model):
             "travelers": self.travelers,
             "target_price": self.target_price,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "latest_price": latest_price,
+            "price_check_count": len(self.price_checks),
+            "at_or_below_target": (
+                latest_price is not None
+                and self.target_price is not None
+                and latest_price <= self.target_price
+            ),
         }
 
     def __repr__(self):

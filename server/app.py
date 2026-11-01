@@ -3,9 +3,13 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_requir
 from sqlalchemy.exc import IntegrityError
 
 from config import app, db, jwt
-from models import PriceCheck, Recommendation, TripWatch, User
+from models import PriceCheck, Recommendation, TripWatch, User, parse_date
 
 MIN_PASSWORD_LENGTH = 8
+TRIP_FIELDS = (
+    "trip_type", "origin", "destination", "start_date", "end_date", "travelers", "target_price",
+)
+REQUIRED_TRIP_FIELDS = ("origin", "destination", "start_date", "end_date")
 
 
 def error(message, status):
@@ -27,6 +31,61 @@ def json_body():
     return data if isinstance(data, dict) else None
 
 
+def commit():
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+
+def owned_trip(trip_id):
+    return TripWatch.query.filter_by(id=trip_id, user_id=current_user_id()).first()
+
+
+def parse_travelers(value):
+    # int() alone would quietly turn 2.5 into 2 and True into 1.
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    if isinstance(value, str) and value.strip().isdecimal():
+        return int(value)
+    raise ValueError("travelers must be a whole number.")
+
+
+def parse_target_price(value):
+    if value is None:
+        return None
+    try:
+        if isinstance(value, bool):
+            raise ValueError
+        return float(value)
+    except (TypeError, ValueError):
+        raise ValueError("target_price must be a number.")
+
+
+def parse_trip_fields(data):
+    """Return a copy of data with its values converted to the types the model expects."""
+    fields = dict(data)
+    for key in ("start_date", "end_date"):
+        if key in fields:
+            fields[key] = parse_date(key, fields[key])
+    if "travelers" in fields:
+        fields["travelers"] = parse_travelers(fields["travelers"])
+    if "target_price" in fields:
+        fields["target_price"] = parse_target_price(fields["target_price"])
+    return fields
+
+
+def update_trip_fields(trip, fields):
+    # Each date is checked against the other as soon as it is set. Without this, moving
+    # both dates later would fail, because the new start is compared to the old end.
+    if "start_date" in fields and "end_date" in fields:
+        trip.end_date = None
+    for key in TRIP_FIELDS:
+        if key in fields:
+            setattr(trip, key, fields[key])
+
+
 # ---------- Error handlers ----------
 
 @app.errorhandler(404)
@@ -38,6 +97,13 @@ def not_found(e):
 def handle_value_error(e):
     db.session.rollback()
     return error(str(e), 400)
+
+
+@app.errorhandler(OverflowError)
+def handle_overflow_error(e):
+    # SQLite integers are 64-bit, so a huge id or traveler count can't even be queried.
+    db.session.rollback()
+    return error("A number in the request is too large", 400)
 
 
 @jwt.unauthorized_loader
@@ -119,6 +185,87 @@ def me():
     if not user:
         return error("User not found", 404)
     return user.to_dict(), 200
+
+
+@app.get("/trips")
+@jwt_required()
+def list_trips():
+    trips = (
+        TripWatch.query.filter_by(user_id=current_user_id())
+        .order_by(TripWatch.created_at.desc(), TripWatch.id.desc())
+        .all()
+    )
+    return [trip.to_dict() for trip in trips], 200
+
+
+@app.post("/trips")
+@jwt_required()
+def create_trip():
+    data = json_body()
+    if data is None:
+        return error("Request body must be a JSON object", 400)
+
+    missing = [key for key in REQUIRED_TRIP_FIELDS if key not in data]
+    if missing:
+        return error(f"Missing required field(s): {', '.join(missing)}", 400)
+
+    fields = parse_trip_fields({key: data[key] for key in TRIP_FIELDS if key in data})
+    trip = TripWatch(**fields, user_id=current_user_id())
+    db.session.add(trip)
+    commit()
+    return trip.to_dict(), 201
+
+
+@app.get("/trips/<int:trip_id>")
+@jwt_required()
+def get_trip(trip_id):
+    trip = owned_trip(trip_id)
+    if not trip:
+        return error("Not found", 404)
+
+    price_checks = sorted(trip.price_checks, key=lambda check: (check.checked_at, check.id))
+    recommendations = sorted(
+        trip.recommendations, key=lambda rec: (rec.created_at, rec.id), reverse=True
+    )
+    return {
+        **trip.to_dict(),
+        "price_checks": [check.to_dict() for check in price_checks],
+        "recommendations": [rec.to_dict() for rec in recommendations],
+    }, 200
+
+
+@app.patch("/trips/<int:trip_id>")
+@jwt_required()
+def update_trip(trip_id):
+    trip = owned_trip(trip_id)
+    if not trip:
+        return error("Not found", 404)
+
+    data = json_body()
+    if data is None:
+        return error("Request body must be a JSON object", 400)
+    if not data:
+        return error(f"Provide at least one of: {', '.join(TRIP_FIELDS)}", 400)
+
+    disallowed = sorted(set(data) - set(TRIP_FIELDS))
+    if disallowed:
+        return error(f"Cannot update field(s): {', '.join(disallowed)}", 400)
+
+    update_trip_fields(trip, parse_trip_fields(data))
+    commit()
+    return trip.to_dict(), 200
+
+
+@app.delete("/trips/<int:trip_id>")
+@jwt_required()
+def delete_trip(trip_id):
+    trip = owned_trip(trip_id)
+    if not trip:
+        return error("Not found", 404)
+
+    db.session.delete(trip)
+    commit()
+    return "", 204
 
 
 if __name__ == "__main__":
