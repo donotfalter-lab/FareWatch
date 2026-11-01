@@ -79,14 +79,43 @@ All relationships use `cascade="all, delete-orphan"` on the parent side and `bac
    - `AI_MOCK=true` or no `GEMINI_API_KEY` → a sample book-now-or-wait recommendation that
      uses the trip's real numbers (target price, latest price, trend).
 6. **Errors are JSON**: `{"error": "message"}` with a fitting status code (400, 401, 404,
-   409, 429, 502, 504).
+   405, 409, 429, 500, 502, 504). Never send internal details in a 500.
 7. **Keep it simple**: no extra libraries without a reason, no premature abstraction.
+
+## Conventions already in the code
+
+Backend:
+- `parse_trip_fields()` in `app.py` converts request values; model `@validates` methods
+  enforce the rules. A `ValueError` from either becomes a 400 automatically.
+- The API requires `end_date` even though the database column allows empty.
+- Set trip fields with `update_trip_fields()`. It handles moving both dates at once, which
+  would otherwise fail because each date is checked against the other as it is set.
+- `provider` is `"mock"` for sample prices. `PriceCheck.details` holds `airline`, `stops`,
+  and `duration_minutes`, so `price_service.py` must store those same fields.
+- `TripWatch.to_dict()` includes `latest_price`, `price_check_count`, and
+  `at_or_below_target`. `GET /trips/<id>` adds `price_checks` (oldest first, for charting)
+  and `recommendations` (newest first).
+
+Frontend:
+- Pages fetch in `useEffect` with the `ignore` flag and handle loading, error, and 404
+  ("Trip not found") states.
+- Format values with `client/src/utils/format.js`. Never use `new Date("YYYY-MM-DD")`,
+  because it shows dates a day early in the Americas.
+- Two routes that share a component get different `key`s (see `TripForm` in `App.jsx`), or
+  React keeps the old state when moving between them.
+- All styles live in `client/src/index.css` and use its CSS variables.
+
+## Git workflow
+
+- One branch per step, named `feature/<name>`, created from an up-to-date `main`.
+- Show `git status` before committing, and commit with the message given for the step.
+- Do not merge or push until told to.
 
 ## Environment variables (`server/.env`, see `server/.env.example`)
 
 | Variable | Purpose |
 | --- | --- |
-| `JWT_SECRET_KEY` | Signs login tokens |
+| `JWT_SECRET_KEY` | Signs login tokens. Use a random value, never the `.env.example` placeholder |
 | `SERPAPI_KEY` | SerpApi key; blank → mock prices |
 | `GEMINI_API_KEY` | Gemini key; blank → mock recommendations |
 | `GEMINI_MODEL` | Gemini model name (default `gemini-3.8-flash`) |
@@ -102,29 +131,32 @@ FareWatchh/
 ├── server/
 │   ├── Pipfile
 │   ├── .env.example       # copy to .env
-│   ├── config.py          # (later) app, db, jwt, bcrypt setup
-│   ├── models.py          # (later) User, TripWatch, PriceCheck, Recommendation
-│   ├── app.py             # (later) routes
+│   ├── config.py          # app, db, jwt, bcrypt setup
+│   ├── models.py          # User, TripWatch, PriceCheck, Recommendation
+│   ├── app.py             # routes
+│   ├── seed.py            # demo data (demo and demo2, password123)
+│   ├── migrations/
 │   ├── price_service.py   # (later) SerpApi + mock
-│   ├── ai_service.py      # (later) Gemini + mock
-│   └── seed.py            # (later) demo data
+│   └── ai_service.py      # (later) Gemini + mock
 └── client/                # Vite + React
     ├── vite.config.js     # /api proxy → localhost:5555
     └── src/
         ├── api.js
         ├── context/AuthContext.jsx
-        ├── components/    # ProtectedRoute, PublicOnlyRoute, ...
-        └── pages/
+        ├── components/    # NavBar, LoginForm, SignupForm, TripCard, route guards, ...
+        ├── pages/         # Dashboard, TripForm, TripDetail, NotFound
+        └── utils/format.js
 ```
 
 ## Commands
 
 ```bash
-# Backend
+# Backend (run `deactivate` first if another project's virtualenv is active)
 cd server
 pipenv install
 cp .env.example .env                 # then set JWT_SECRET_KEY
-pipenv run flask --app app db upgrade   # once migrations exist
+pipenv run flask --app app db upgrade
+pipenv run python seed.py            # clears all tables, then adds the demo data
 pipenv run python app.py             # http://localhost:5555
 
 # Frontend
@@ -138,11 +170,13 @@ npm run lint
 ## Build order
 
 1. ✅ Project setup and this file.
-2. Backend config + models + migrations.
-3. Auth routes (`/signup`, `/login`, `/me`).
-4. TripWatch CRUD.
-5. Price checks (`price_service.py`) and price history.
-6. Recommendations (`ai_service.py`).
-7. Frontend auth (api.js, AuthContext, route guards, login/signup pages).
-8. Frontend trip watches, price chart (Recharts), recommendations.
-9. Seed data and README.
+2. ✅ Models, migrations, and seed data.
+3. ✅ Auth routes (`/signup`, `/login`, `/me`).
+4. ✅ TripWatch CRUD routes.
+5. ✅ Frontend auth (api.js, AuthContext, route guards, login/signup forms).
+6. ✅ Frontend dashboard, trip create/edit form, and detail page with placeholder sections.
+7. Price checks (`price_service.py`) and price history routes.
+8. Frontend "Price History" section with a Recharts chart.
+9. Recommendations (`ai_service.py`) routes.
+10. Frontend "Should I Book?" section.
+11. README and final polish.

@@ -18,6 +18,9 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 app.json.compact = False
+# Debug mode would otherwise answer crashes with an HTML page instead of our JSON error.
+# The traceback still prints in the terminal.
+app.config["PROPAGATE_EXCEPTIONS"] = False
 
 metadata = MetaData(naming_convention={
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",

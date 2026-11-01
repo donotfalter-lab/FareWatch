@@ -93,6 +93,17 @@ def not_found(e):
     return error("Not found", 404)
 
 
+@app.errorhandler(405)
+def method_not_allowed(e):
+    return error("Method not allowed", 405)
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    db.session.rollback()
+    return error("Something went wrong on the server", 500)
+
+
 @app.errorhandler(ValueError)
 def handle_value_error(e):
     db.session.rollback()
